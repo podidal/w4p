@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Audio Broadcasting System</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Bluetooth Audio Broadcasting</h1>
+            <div class="role-selector">
+                <button id="hostBtn" class="role-btn active">
+                    <i class="fas fa-broadcast-tower"></i>
+                    Host
+                </button>
+                <button id="receiverBtn" class="role-btn">
+                    <i class="fas fa-headphones"></i>
+                    Receiver
+                </button>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <!-- Host Interface -->
+            <section id="hostInterface" class="interface-panel">
+                <div class="control-panel">
+                    <button id="startBroadcast" class="primary-btn">
+                        <i class="fas fa-play"></i>
+                        <span>Start Broadcasting</span>
+                    </button>
+                    
+                    <div class="audio-controls">
+                        <div class="control-group">
+                            <button id="toggleMic" class="control-btn">
+                                <i class="fas fa-microphone"></i>
+                                <span>Microphone</span>
+                            </button>
+                            <div class="audio-visualizer">
+                                <canvas id="micVisualizer"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="volume-control">
+                            <label for="broadcastVolume">
+                                <i class="fas fa-volume-up"></i>
+                                Master Volume
+                            </label>
+                            <input type="range" id="broadcastVolume" min="0" max="100" value="100">
+                            <span class="volume-value">100%</span>
+                        </div>
+
+                        <div class="quality-settings">
+                            <label for="audioQuality">Audio Quality</label>
+                            <select id="audioQuality" class="quality-select">
+                                <option value="high">High (48kHz)</option>
+                                <option value="medium" selected>Medium (44.1kHz)</option>
+                                <option value="low">Low (32kHz)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="connected-devices">
+                    <div class="section-header">
+                        <h2>Connected Devices</h2>
+                        <span class="device-count">0 devices</span>
+                    </div>
+                    <div class="device-list-container">
+                        <ul id="deviceList" class="device-list"></ul>
+                    </div>
+                </div>
+
+                <div class="performance-panel">
+                    <h3>System Status</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <i class="fas fa-clock"></i>
+                            <span class="metric-label">Latency</span>
+                            <span class="latency-value">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <i class="fas fa-signal"></i>
+                            <span class="metric-label">Signal</span>
+                            <span class="signal-value">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <i class="fas fa-microchip"></i>
+                            <span class="metric-label">CPU</span>
+                            <span class="cpu-value">--</span>
+                        </div>
+                        <div class="metric-card">
+                            <i class="fas fa-battery-three-quarters"></i>
+                            <span class="metric-label">Battery</span>
+                            <span class="battery-value">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="statusIndicator" class="status-panel">
+                    <div class="status-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="status-content">
+                        <span class="status-text">Ready to broadcast</span>
+                        <div class="connection-info">
+                            <span class="bluetooth-status">
+                                <i class="fab fa-bluetooth-b"></i>
+                                Not Connected
+                            </span>
+                            <span class="latency">
+                                <i class="fas fa-stopwatch"></i>
+                                Latency: --
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Receiver Interface -->
+            <section id="receiverInterface" class="interface-panel hidden">
+                <div class="control-panel">
+                    <button id="startListening" class="primary-btn">
+                        <i class="fas fa-search"></i>
+                        <span>Connect to Host</span>
+                    </button>
+                    
+                    <div class="audio-controls">
+                        <div class="volume-control">
+                            <label for="receiverVolume">
+                                <i class="fas fa-volume-up"></i>
+                                Volume
+                            </label>
+                            <input type="range" id="receiverVolume" min="0" max="100" value="100">
+                            <span class="volume-value">100%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="audio-visualizer-container">
+                    <canvas id="receiverVisualizer"></canvas>
+                </div>
+
+                <div id="receiverStatus" class="status-panel">
+                    <div class="status-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="status-content">
+                        <span class="status-text">Ready to connect</span>
+                        <div class="connection-info">
+                            <span class="bluetooth-status">
+                                <i class="fab fa-bluetooth-b"></i>
+                                Not Connected
+                            </span>
+                            <span class="signal-strength">
+                                <i class="fas fa-signal"></i>
+                                Signal: --
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Notifications -->
+        <div id="notificationContainer" class="notification-container"></div>
+    </div>
+
+    <script src="js/audioVisualizer.js" type="module"></script>
+    <script src="js/audioController.js" type="module"></script>
+    <script src="js/bluetoothController.js" type="module"></script>
+    <script src="js/performanceMonitor.js" type="module"></script>
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
