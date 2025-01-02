@@ -21,8 +21,12 @@ class App {
         this.notificationManager = new NotificationManager();
         this.performanceMonitor = new PerformanceMonitor();
         
-        // Create audio context
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Create audio context but don't start it yet
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            latencyHint: 'interactive',
+            sampleRate: 48000
+        });
+        this.audioContext.suspend(); // Suspend until user interaction
         
         // Initialize controllers
         this.audioController = new AudioController(
@@ -51,6 +55,37 @@ class App {
         this.receiverVisualizer = new AudioVisualizer('receiverVisualizer', {
             primaryColor: '#4CAF50',
             secondaryColor: '#388E3C'
+        });
+
+        // Add overlay for first interaction
+        this.showStartOverlay();
+    }
+
+    /**
+     * Shows an overlay to capture first user interaction
+     * @private
+     */
+    showStartOverlay() {
+        const overlay = document.createElement('div');
+        overlay.className = 'start-overlay';
+        overlay.innerHTML = `
+            <div class="start-content">
+                <h2>Welcome to Bluetooth Audio Broadcasting</h2>
+                <p>Click anywhere to start the application</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Handle click to start
+        overlay.addEventListener('click', async () => {
+            try {
+                await this.audioContext.resume();
+                overlay.remove();
+                this.notificationManager.success('Audio system initialized');
+            } catch (error) {
+                console.error('Failed to start audio context:', error);
+                this.notificationManager.error('Failed to initialize audio system');
+            }
         });
     }
 

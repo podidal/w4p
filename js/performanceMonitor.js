@@ -1,207 +1,271 @@
 /**
- * Monitors and optimizes system performance
+ * Monitors and reports system performance metrics
  */
 class PerformanceMonitor {
     constructor() {
         this.metrics = {
-            audioLatency: new MovingAverage(50),
-            bluetoothLatency: new MovingAverage(50),
-            processingTime: new MovingAverage(50),
-            batteryLevel: null,
-            cpuUsage: new MovingAverage(10)
+            audioLatency: 0,
+            bluetoothLatency: 0,
+            cpuUsage: 0,
+            batteryLevel: 100,
+            signalStrength: 0
         };
 
-        this.thresholds = {
-            audioLatency: 100, // ms
-            bluetoothLatency: 200, // ms
-            processingTime: 50, // ms
-            batteryLevel: 0.2 // 20%
-        };
-
-        this.listeners = new Set();
         this.isMonitoring = false;
+        this.monitoringInterval = null;
+        this.audioStartTime = 0;
+        this.latencyBuffer = [];
+        this.maxLatencyBufferSize = 50;
+        this.latencyThreshold = 200; // milliseconds
+        
+        // Initialize battery monitoring if available
+        if (navigator.getBattery) {
+            this.initializeBatteryMonitoring();
+        }
     }
 
     /**
-     * Starts performance monitoring
+     * Starts monitoring audio performance
      */
-    start() {
-        if (this.isMonitoring) return;
+    startAudioMonitoring() {
+        this.audioStartTime = performance.now();
         this.isMonitoring = true;
+        this.startPerformanceMonitoring();
+    }
 
-        // Monitor battery level
-        if ('getBattery' in navigator) {
-            navigator.getBattery().then(battery => {
-                this.metrics.batteryLevel = battery.level;
-                battery.addEventListener('levelchange', () => {
-                    this.metrics.batteryLevel = battery.level;
-                    this.checkThresholds();
-                });
-            });
+    /**
+     * Stops audio performance monitoring
+     */
+    stopAudioMonitoring() {
+        this.isMonitoring = false;
+        this.audioStartTime = 0;
+        this.latencyBuffer = [];
+        this.stopPerformanceMonitoring();
+    }
+
+    /**
+     * Updates audio latency measurements
+     * @param {number} latency - Measured latency in milliseconds
+     */
+    updateLatency(latency) {
+        // Add to rolling buffer
+        this.latencyBuffer.push(latency);
+        if (this.latencyBuffer.length > this.maxLatencyBufferSize) {
+            this.latencyBuffer.shift();
         }
 
-        // Start periodic monitoring
-        this.monitoringInterval = setInterval(() => {
-            this.updateMetrics();
-        }, 1000);
-    }
+        // Calculate average latency
+        const avgLatency = this.latencyBuffer.reduce((a, b) => a + b, 0) / this.latencyBuffer.length;
+        this.metrics.audioLatency = avgLatency;
 
-    /**
-     * Updates performance metrics
-     * @private
-     */
-    updateMetrics() {
-        // Update CPU usage
-        if ('performance' in window) {
-            const cpuUsage = performance.now() % 100; // Simplified CPU usage estimation
-            this.metrics.cpuUsage.add(cpuUsage);
-        }
-
-        this.checkThresholds();
-        this.notifyListeners();
-    }
-
-    /**
-     * Adds a new latency measurement
-     * @param {string} type - Type of latency ('audio' or 'bluetooth')
-     * @param {number} value - Latency value in milliseconds
-     */
-    addLatencyMeasurement(type, value) {
-        switch (type) {
-            case 'audio':
-                this.metrics.audioLatency.add(value);
-                break;
-            case 'bluetooth':
-                this.metrics.bluetoothLatency.add(value);
-                break;
-        }
-        this.checkThresholds();
-    }
-
-    /**
-     * Adds processing time measurement
-     * @param {number} time - Processing time in milliseconds
-     */
-    addProcessingTime(time) {
-        this.metrics.processingTime.add(time);
-        this.checkThresholds();
-    }
-
-    /**
-     * Checks if any metrics exceed their thresholds
-     * @private
-     */
-    checkThresholds() {
-        const alerts = [];
-
-        if (this.metrics.audioLatency.average() > this.thresholds.audioLatency) {
-            alerts.push({
+        // Check if latency exceeds threshold
+        if (avgLatency > this.latencyThreshold) {
+            this.dispatchAlert({
                 type: 'warning',
                 message: 'High audio latency detected',
-                value: this.metrics.audioLatency.average()
+                value: avgLatency
             });
         }
 
-        if (this.metrics.bluetoothLatency.average() > this.thresholds.bluetoothLatency) {
-            alerts.push({
-                type: 'warning',
-                message: 'High Bluetooth latency detected',
-                value: this.metrics.bluetoothLatency.average()
-            });
-        }
-
-        if (this.metrics.processingTime.average() > this.thresholds.processingTime) {
-            alerts.push({
-                type: 'warning',
-                message: 'High processing time detected',
-                value: this.metrics.processingTime.average()
-            });
-        }
-
-        if (this.metrics.batteryLevel !== null && 
-            this.metrics.batteryLevel < this.thresholds.batteryLevel) {
-            alerts.push({
-                type: 'warning',
-                message: 'Low battery level',
-                value: this.metrics.batteryLevel
-            });
-        }
-
-        if (alerts.length > 0) {
-            this.notifyListeners({ type: 'alerts', alerts });
-        }
+        this.updateMetricsDisplay();
     }
 
     /**
-     * Adds a performance update listener
-     * @param {Function} listener - Callback function for updates
+     * Updates Bluetooth connection metrics
+     * @param {boolean} isConnected - Connection status
      */
-    addListener(listener) {
-        this.listeners.add(listener);
+    updateConnectionStatus(isConnected) {
+        if (!isConnected) {
+            this.metrics.signalStrength = 0;
+            this.metrics.bluetoothLatency = 0;
+        }
+        this.updateMetricsDisplay();
     }
 
     /**
-     * Removes a performance update listener
-     * @param {Function} listener - Callback function to remove
+     * Updates signal strength measurement
+     * @param {number} rssi - RSSI value in dBm
      */
-    removeListener(listener) {
-        this.listeners.delete(listener);
+    updateSignalStrength(rssi) {
+        // Convert RSSI to percentage (-100 dBm to -50 dBm range)
+        const signalStrength = Math.min(100, Math.max(0, 2 * (rssi + 100)));
+        this.metrics.signalStrength = signalStrength;
+
+        // Alert on poor signal strength
+        if (signalStrength < 30) {
+            this.dispatchAlert({
+                type: 'warning',
+                message: 'Poor signal strength',
+                value: signalStrength
+            });
+        }
+
+        this.updateMetricsDisplay();
     }
 
     /**
-     * Notifies all listeners of performance updates
+     * Updates Bluetooth latency measurement
+     * @param {number} latency - Measured latency in milliseconds
+     */
+    updateBluetoothLatency(latency) {
+        this.metrics.bluetoothLatency = latency;
+        
+        if (latency > 100) {
+            this.dispatchAlert({
+                type: 'warning',
+                message: 'High Bluetooth latency',
+                value: latency
+            });
+        }
+
+        this.updateMetricsDisplay();
+    }
+
+    /**
+     * Initializes battery monitoring
      * @private
      */
-    notifyListeners() {
-        const update = {
-            audioLatency: this.metrics.audioLatency.average(),
-            bluetoothLatency: this.metrics.bluetoothLatency.average(),
-            processingTime: this.metrics.processingTime.average(),
-            batteryLevel: this.metrics.batteryLevel,
-            cpuUsage: this.metrics.cpuUsage.average()
-        };
+    async initializeBatteryMonitoring() {
+        try {
+            const battery = await navigator.getBattery();
+            
+            const updateBattery = () => {
+                this.metrics.batteryLevel = battery.level * 100;
+                this.updateMetricsDisplay();
 
-        this.listeners.forEach(listener => {
-            try {
-                listener(update);
-            } catch (error) {
-                console.error('Error in performance listener:', error);
-            }
-        });
+                if (battery.level < 0.2 && !battery.charging) {
+                    this.dispatchAlert({
+                        type: 'warning',
+                        message: 'Low battery',
+                        value: this.metrics.batteryLevel
+                    });
+                }
+            };
+
+            battery.addEventListener('levelchange', updateBattery);
+            battery.addEventListener('chargingchange', updateBattery);
+            updateBattery();
+        } catch (error) {
+            console.warn('Battery monitoring not available:', error);
+        }
     }
 
     /**
-     * Stops performance monitoring
+     * Starts continuous performance monitoring
+     * @private
      */
-    stop() {
-        this.isMonitoring = false;
+    startPerformanceMonitoring() {
+        if (this.monitoringInterval) return;
+
+        this.monitoringInterval = setInterval(() => {
+            this.updateCPUUsage();
+        }, 2000);
+    }
+
+    /**
+     * Stops continuous performance monitoring
+     * @private
+     */
+    stopPerformanceMonitoring() {
         if (this.monitoringInterval) {
             clearInterval(this.monitoringInterval);
-        }
-    }
-}
-
-/**
- * Calculates moving average for performance metrics
- */
-class MovingAverage {
-    constructor(size) {
-        this.size = size;
-        this.values = [];
-        this.sum = 0;
-    }
-
-    add(value) {
-        this.values.push(value);
-        this.sum += value;
-        
-        if (this.values.length > this.size) {
-            this.sum -= this.values.shift();
+            this.monitoringInterval = null;
         }
     }
 
-    average() {
-        return this.values.length === 0 ? 0 : this.sum / this.values.length;
+    /**
+     * Updates CPU usage measurement
+     * @private
+     */
+    async updateCPUUsage() {
+        if (!this.isMonitoring) return;
+
+        try {
+            const currentTime = performance.now();
+            const timeDiff = currentTime - this.lastCPUCheck;
+            
+            if (timeDiff > 1000) { // Check every second
+                const usage = await this.measureCPUUsage();
+                this.metrics.cpuUsage = usage;
+
+                if (usage > 80) {
+                    this.dispatchAlert({
+                        type: 'warning',
+                        message: 'High CPU usage',
+                        value: usage
+                    });
+                }
+
+                this.lastCPUCheck = currentTime;
+                this.updateMetricsDisplay();
+            }
+        } catch (error) {
+            console.warn('CPU monitoring error:', error);
+        }
+    }
+
+    /**
+     * Measures current CPU usage
+     * @private
+     * @returns {Promise<number>} CPU usage percentage
+     */
+    async measureCPUUsage() {
+        if (!window.performance || !performance.memory) {
+            return 0;
+        }
+
+        const used = performance.memory.usedJSHeapSize;
+        const total = performance.memory.totalJSHeapSize;
+        return Math.round((used / total) * 100);
+    }
+
+    /**
+     * Updates the metrics display in the UI
+     * @private
+     */
+    updateMetricsDisplay() {
+        // Update latency display
+        const latencyValue = document.querySelector('.latency-value');
+        if (latencyValue) {
+            latencyValue.textContent = `${Math.round(this.metrics.audioLatency)}ms`;
+        }
+
+        // Update signal strength display
+        const signalValue = document.querySelector('.signal-value');
+        if (signalValue) {
+            signalValue.textContent = `${Math.round(this.metrics.signalStrength)}%`;
+        }
+
+        // Update CPU usage display
+        const cpuValue = document.querySelector('.cpu-value');
+        if (cpuValue) {
+            cpuValue.textContent = `${Math.round(this.metrics.cpuUsage)}%`;
+        }
+
+        // Update battery level display
+        const batteryValue = document.querySelector('.battery-value');
+        if (batteryValue) {
+            batteryValue.textContent = `${Math.round(this.metrics.batteryLevel)}%`;
+        }
+    }
+
+    /**
+     * Dispatches a performance alert
+     * @private
+     * @param {Object} alert - Alert details
+     */
+    dispatchAlert(alert) {
+        window.dispatchEvent(new CustomEvent('performance:alert', {
+            detail: alert
+        }));
+    }
+
+    /**
+     * Gets current performance metrics
+     * @returns {Object} Current metrics
+     */
+    getMetrics() {
+        return { ...this.metrics };
     }
 }
 

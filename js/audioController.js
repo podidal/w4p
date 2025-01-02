@@ -1,206 +1,163 @@
 /**
- * Handles audio capture and processing for the broadcasting system
+ * Handles audio capture and broadcasting
  */
 class AudioController {
-    constructor() {
-        this.audioContext = null;
+    constructor(audioContext, notificationManager, performanceMonitor) {
+        this.audioContext = audioContext;
+        this.notificationManager = notificationManager;
+        this.performanceMonitor = performanceMonitor;
         this.mediaStream = null;
-        this.mediaStreamSource = null;
-        this.audioProcessor = null;
-        this.isInitialized = false;
-        this.volume = 1.0;
-        this.latencyData = new Map();
-        this.bufferSize = 4096; // Adjustable based on latency requirements
-        this.sampleRate = 48000; // High-quality audio
-        this.recordingStartTime = 0;
+        this.sourceNode = null;
+        this.gainNode = null;
+        this.audioWorklet = null;
+        this.isBroadcasting = false;
+        this.isMuted = false;
+        this.quality = 'medium';
+        
+        this.setupAudioNodes();
     }
 
     /**
-     * Initializes the audio context and sets up audio processing
-     * @returns {Promise<void>}
+     * Sets up audio processing nodes
+     * @private
      */
-    async initialize() {
-        if (this.isInitialized) return;
+    async setupAudioNodes() {
+        // Create gain node for volume control
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.connect(this.audioContext.destination);
 
         try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                latencyHint: 'interactive',
-                sampleRate: this.sampleRate
-            });
-            
-            // Create audio worklet for efficient processing
+            // Load audio worklet for processing
             await this.audioContext.audioWorklet.addModule('js/audioWorklet.js');
-            this.isInitialized = true;
+            this.audioWorklet = new AudioWorkletNode(this.audioContext, 'audio-processor');
+            this.audioWorklet.connect(this.gainNode);
+
+            // Handle messages from audio worklet
+            this.audioWorklet.port.onmessage = (event) => {
+                if (event.data.type === 'latency') {
+                    this.performanceMonitor.updateLatency(event.data.value);
+                }
+            };
         } catch (error) {
-            console.error('Failed to initialize AudioContext:', error);
-            throw new Error('Audio system initialization failed');
+            console.error('Failed to load audio worklet:', error);
+            this.notificationManager.error('Failed to initialize audio processing');
         }
     }
 
     /**
-     * Starts microphone capture with optimized settings
-     * @returns {Promise<void>}
+     * Starts broadcasting audio
      */
-    async startMicrophone() {
-        if (!this.isInitialized) {
-            await this.initialize();
-        }
+    async startBroadcasting() {
+        if (this.isBroadcasting) return;
 
         try {
+            await this.audioContext.resume();
+            
+            // Get microphone access
             this.mediaStream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
-                    autoGainControl: true,
-                    channelCount: 1, // Mono for bandwidth efficiency
-                    sampleRate: this.sampleRate,
-                    latency: 0.01 // Request minimal latency
+                    autoGainControl: true
                 }
             });
 
-            this.mediaStreamSource = this.audioContext.createMediaStreamSource(this.mediaStream);
-            this.setupAudioProcessing();
-            this.recordingStartTime = this.audioContext.currentTime;
+            // Create and connect source node
+            this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
+            this.sourceNode.connect(this.audioWorklet);
+
+            this.isBroadcasting = true;
+            this.notificationManager.success('Started broadcasting');
+            
+            // Start performance monitoring
+            this.performanceMonitor.startAudioMonitoring();
         } catch (error) {
-            console.error('Failed to start microphone:', error);
-            throw new Error('Microphone access failed');
+            console.error('Broadcasting failed:', error);
+            this.notificationManager.error('Failed to start broadcasting');
+            throw error;
         }
     }
 
     /**
-     * Sets up optimized audio processing pipeline
-     * @private
+     * Stops broadcasting audio
      */
-    setupAudioProcessing() {
-        // Create audio worklet node for efficient processing
-        this.audioProcessor = new AudioWorkletNode(this.audioContext, 'audio-processor', {
-            numberOfInputs: 1,
-            numberOfOutputs: 1,
-            outputChannelCount: [1],
-            processorOptions: {
-                bufferSize: this.bufferSize
-            }
-        });
+    async stopBroadcasting() {
+        if (!this.isBroadcasting) return;
 
-        // Handle processed audio data
-        this.audioProcessor.port.onmessage = (event) => {
-            if (event.data.type === 'processedAudio') {
-                this.handleProcessedAudio(event.data.buffer);
-            } else if (event.data.type === 'latency') {
-                this.updateLatency(event.data.value);
-            }
-        };
-
-        // Connect audio nodes
-        this.mediaStreamSource.connect(this.audioProcessor);
-        this.audioProcessor.connect(this.audioContext.destination);
-    }
-
-    /**
-     * Handles processed audio data and prepares it for transmission
-     * @private
-     * @param {Float32Array} buffer - Processed audio buffer
-     */
-    handleProcessedAudio(buffer) {
-        // Calculate current latency
-        const currentLatency = this.audioContext.currentTime - this.recordingStartTime;
-        
-        // Compress audio data for efficient transmission
-        const compressedData = this.compressAudioData(buffer);
-        
-        // Dispatch audio data with timestamp for synchronization
-        const audioPacket = {
-            timestamp: this.audioContext.currentTime,
-            data: compressedData,
-            latency: currentLatency
-        };
-
-        // Dispatch event with processed audio data
-        this.dispatchEvent('audioProcessed', audioPacket);
-    }
-
-    /**
-     * Compresses audio data for efficient transmission
-     * @private
-     * @param {Float32Array} buffer - Raw audio buffer
-     * @returns {Uint8Array} Compressed audio data
-     */
-    compressAudioData(buffer) {
-        // Convert to 16-bit PCM for better compression
-        const pcmData = new Int16Array(buffer.length);
-        for (let i = 0; i < buffer.length; i++) {
-            pcmData[i] = Math.max(-32768, Math.min(32767, buffer[i] * 32768));
-        }
-
-        // Apply basic compression (implement more sophisticated compression if needed)
-        return new Uint8Array(pcmData.buffer);
-    }
-
-    /**
-     * Updates latency measurements
-     * @private
-     * @param {number} latency - Measured latency in seconds
-     */
-    updateLatency(latency) {
-        const timestamp = Date.now();
-        this.latencyData.set(timestamp, latency);
-        
-        // Keep only recent measurements
-        const oldestAllowed = timestamp - 5000; // Last 5 seconds
-        for (const [key] of this.latencyData) {
-            if (key < oldestAllowed) {
-                this.latencyData.delete(key);
-            }
-        }
-
-        // Calculate average latency
-        const avgLatency = Array.from(this.latencyData.values())
-            .reduce((sum, val) => sum + val, 0) / this.latencyData.size;
-
-        this.dispatchEvent('latencyUpdate', { average: avgLatency });
-    }
-
-    /**
-     * Sets the output volume with smooth transition
-     * @param {number} value - Volume level (0-1)
-     */
-    setVolume(value) {
-        this.volume = Math.max(0, Math.min(1, value));
-        if (this.audioProcessor) {
-            this.audioProcessor.port.postMessage({ type: 'volume', value: this.volume });
-        }
-    }
-
-    /**
-     * Dispatches custom events
-     * @private
-     * @param {string} type - Event type
-     * @param {Object} detail - Event details
-     */
-    dispatchEvent(type, detail) {
-        window.dispatchEvent(new CustomEvent(`audio:${type}`, { detail }));
-    }
-
-    /**
-     * Stops all audio processing and releases resources
-     */
-    stop() {
+        // Stop all tracks in the media stream
         if (this.mediaStream) {
             this.mediaStream.getTracks().forEach(track => track.stop());
-        }
-        
-        if (this.audioProcessor) {
-            this.audioProcessor.disconnect();
-            this.audioProcessor = null;
-        }
-        
-        if (this.mediaStreamSource) {
-            this.mediaStreamSource.disconnect();
-            this.mediaStreamSource = null;
+            this.mediaStream = null;
         }
 
-        this.latencyData.clear();
-        this.recordingStartTime = 0;
+        // Disconnect nodes
+        if (this.sourceNode) {
+            this.sourceNode.disconnect();
+            this.sourceNode = null;
+        }
+
+        this.isBroadcasting = false;
+        this.notificationManager.success('Stopped broadcasting');
+        this.performanceMonitor.stopAudioMonitoring();
+    }
+
+    /**
+     * Toggles microphone mute state
+     * @returns {boolean} New mute state
+     */
+    async toggleMicrophone() {
+        this.isMuted = !this.isMuted;
+        
+        if (this.gainNode) {
+            this.gainNode.gain.value = this.isMuted ? 0 : 1;
+        }
+
+        return this.isMuted;
+    }
+
+    /**
+     * Sets the broadcasting volume
+     * @param {number} volume - Volume level (0-1)
+     */
+    setVolume(volume) {
+        if (this.gainNode) {
+            this.gainNode.gain.value = Math.max(0, Math.min(1, volume));
+        }
+    }
+
+    /**
+     * Sets the audio quality
+     * @param {string} quality - Quality level ('high', 'medium', 'low')
+     */
+    setQuality(quality) {
+        this.quality = quality;
+        if (this.audioWorklet) {
+            this.audioWorklet.port.postMessage({
+                type: 'setQuality',
+                quality: quality
+            });
+        }
+    }
+
+    /**
+     * Gets the audio source node
+     * @returns {MediaStreamAudioSourceNode}
+     */
+    getSourceNode() {
+        return this.sourceNode;
+    }
+
+    /**
+     * Cleans up resources
+     */
+    dispose() {
+        this.stopBroadcasting();
+        if (this.audioWorklet) {
+            this.audioWorklet.disconnect();
+        }
+        if (this.gainNode) {
+            this.gainNode.disconnect();
+        }
     }
 }
 
