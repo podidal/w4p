@@ -1,0 +1,45 @@
+/* General Styles */
+.mode-interface {
+    transition: all 0.3s ease;
+}
+
+/* Card Styles */
+.card {
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-title {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+/* Button Styles */
+.btn {
+    margin-right: 0.5rem;
+}
+
+/* List Styles */
+.list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Status Indicators */
+.connection-status {
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Animation for connection status */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.connecting {
+    animation: pulse 1.5s infinite;
+}

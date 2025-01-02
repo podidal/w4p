@@ -1,0 +1,22 @@
+{
+  "name": "bluetooth-audio-broadcaster",
+  "version": "1.0.0",
+  "description": "A web-based Bluetooth audio broadcasting system",
+  "main": "index.js",
+  "scripts": {
+    "start": "lite-server",
+    "test": "jest"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.2",
+    "toastify-js": "^1.12.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "lite-server": "^2.6.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Audio Broadcaster</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050"></div>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="text-center mb-4">Bluetooth Audio Broadcaster</h1>
+                <div class="d-flex justify-content-center mb-4">
+                    <div class="btn-group" role="group">
+                        <button id="hostButton" class="btn btn-primary">Host Mode</button>
+                        <button id="receiverButton" class="btn btn-secondary">Receiver Mode</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Host Mode Interface -->
+        <div id="hostInterface" class="mode-interface d-none">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Broadcasting Controls</h5>
+                            <button id="startBroadcast" class="btn btn-success mb-2">Start Broadcasting</button>
+                            <button id="stopBroadcast" class="btn btn-danger mb-2" disabled>Stop Broadcasting</button>
+                            
+                            <!-- Audio Quality Settings -->
+                            <div class="mt-3">
+                                <h6>Audio Quality Settings</h6>
+                                <div class="mb-2">
+                                    <label for="sampleRate" class="form-label">Sample Rate</label>
+                                    <select id="sampleRate" class="form-select">
+                                        <option value="44100">44.1 kHz</option>
+                                        <option value="48000">48 kHz</option>
+                                        <option value="22050">22.05 kHz (Low Quality)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="bufferSize" class="form-label">Buffer Size</label>
+                                    <select id="bufferSize" class="form-select">
+                                        <option value="256">256 (Lowest Latency)</option>
+                                        <option value="512">512</option>
+                                        <option value="1024">1024</option>
+                                        <option value="2048">2048</option>
+                                        <option value="4096" selected>4096 (Most Stable)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="compression" class="form-label">Compression Level</label>
+                                    <select id="compression" class="form-select">
+                                        <option value="none">None (Best Quality)</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="high">High (Best Performance)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Broadcasting Stats -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Broadcasting Stats</h5>
+                            <div id="broadcastStats">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Latency:</span>
+                                    <span id="latencyValue">-- ms</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Data Rate:</span>
+                                    <span id="dataRateValue">-- KB/s</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>CPU Usage:</span>
+                                    <span id="cpuUsageValue">--%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Connected Devices</h5>
+                            <ul id="connectedDevices" class="list-group">
+                                <!-- Connected devices will be listed here -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receiver Mode Interface -->
+        <div id="receiverInterface" class="mode-interface d-none">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Receiver Status</h5>
+                            <div id="connectionStatus" class="alert alert-info">Not connected</div>
+                            <button id="searchHost" class="btn btn-primary">Search for Host</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Connection Quality</h5>
+                            <div id="connectionQuality">
+                                <div class="mb-3">
+                                    <label class="form-label">Signal Strength</label>
+                                    <div class="progress">
+                                        <div id="signalStrength" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Audio Buffer Health</label>
+                                    <div class="progress">
+                                        <div id="bufferHealth" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Packet Loss:</span>
+                                    <span id="packetLoss">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="js/audioController.js"></script>
+    <script src="js/bluetoothController.js"></script>
+    <script src="js/statsMonitor.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+The application allows a group of users to transform their mobile devices into Bluetooth speakers for a host. The host can play audio files or use their phone's microphone to broadcast sound to connected devices in real-time with minimal latency.
+use lastest versions of all packages 
+Key Features
+Host Audio Broadcasting:
+ stream audio via the microphone.
+Real-time broadcast to connected Bluetooth devices.
+Bluetooth Connection:
+Seamless device discovery and pairing via Bluetooth.
+Support for multiple connections (up to Bluetooth's hardware limits).
+Low Latency Synchronization:
+Synchronize audio playback across devices with minimal delay.
+Simple UI
+Development Rules - Bluetooth Audio App
+Code Structure Rules
+File Length
+Maximum 200 lines per file
+Split code into modules when exceeding limit
+One class/module per file
+Code Style
+check for existing code before adding new code within a same functionality
+Naming Conventions
+
+
+camelCase: variables, functions
+PascalCase: classes
+UPPER_SNAKE_CASE: constants
+Use meaningful, descriptive names
+No abbreviations
+
+
+Documentation
+
+
+JSDoc for functions/classes
+Inline comments for complex logic
+TODO tags for incomplete features
+
+
+Git Workflow
+
+Follow conventional commits
+Use English
+
+Incomplete Code Handling
+
+TODO Comments
+Include task description
+Add developer name/task ID
+Regular TODO review
+
+Modularity
+
+
+Small, focused modules
+Named imports only
+Avoid circular dependencies
+
+Audio Processing
+
+
+Buffer optimization
+Latency monitoring
+
+
+Bluetooth Connection
+
+
+Connection state validation
+Signal strength monitoring
+Device compatibility checks
+
+Code Review Criteria
+
+Technical
+
+
+Performance impact
+Security implications
+Architecture compliance
+
+Environment validation
+Version tagging
+Artifact verification
+
+Keep README updated
