@@ -1,121 +1,112 @@
 /**
- * Manages application notifications and user feedback
+ * Manages application notifications and alerts
  */
 class NotificationManager {
     constructor() {
         this.container = document.getElementById('notificationContainer');
-        this.notifications = new Map();
-        this.counter = 0;
-    }
-
-    /**
-     * Shows a notification message
-     * @param {string} message - The message to display
-     * @param {string} type - The type of notification ('success', 'error', 'warning')
-     * @param {number} duration - How long to show the notification in ms (default 5000)
-     * @returns {string} The notification ID
-     */
-    show(message, type = 'success', duration = 5000) {
-        const id = `notification-${this.counter++}`;
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <i class="fas fa-${this.getIcon(type)}"></i>
-            <div class="notification-content">
-                <div class="notification-message">${message}</div>
-            </div>
-        `;
-
-        this.container.appendChild(notification);
-        this.notifications.set(id, notification);
-
-        // Animate in
-        requestAnimationFrame(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateX(0)';
-        });
-
-        // Set up auto-removal
-        if (duration > 0) {
-            setTimeout(() => this.remove(id), duration);
-        }
-
-        return id;
-    }
-
-    /**
-     * Removes a specific notification
-     * @param {string} id - The notification ID to remove
-     */
-    remove(id) {
-        const notification = this.notifications.get(id);
-        if (notification) {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            
-            setTimeout(() => {
-                notification.remove();
-                this.notifications.delete(id);
-            }, 300);
-        }
+        this.notifications = new Set();
+        this.maxNotifications = 3;
+        this.autoHideDelay = 5000; // 5 seconds
     }
 
     /**
      * Shows a success notification
-     * @param {string} message - The success message
-     * @param {number} duration - How long to show the notification
-     * @returns {string} The notification ID
+     * @param {string} message - Notification message
      */
-    success(message, duration = 5000) {
-        return this.show(message, 'success', duration);
+    success(message) {
+        this.show(message, 'success', 'fas fa-check-circle');
     }
 
     /**
      * Shows an error notification
-     * @param {string} message - The error message
-     * @param {number} duration - How long to show the notification
-     * @returns {string} The notification ID
+     * @param {string} message - Notification message
      */
-    error(message, duration = 7000) {
-        return this.show(message, 'error', duration);
+    error(message) {
+        this.show(message, 'error', 'fas fa-exclamation-circle');
     }
 
     /**
      * Shows a warning notification
-     * @param {string} message - The warning message
-     * @param {number} duration - How long to show the notification
-     * @returns {string} The notification ID
+     * @param {string} message - Notification message
      */
-    warning(message, duration = 6000) {
-        return this.show(message, 'warning', duration);
+    warning(message) {
+        this.show(message, 'warning', 'fas fa-exclamation-triangle');
     }
 
     /**
-     * Gets the appropriate icon for the notification type
-     * @private
-     * @param {string} type - The notification type
-     * @returns {string} The icon name
+     * Shows an info notification
+     * @param {string} message - Notification message
      */
-    getIcon(type) {
-        switch (type) {
-            case 'success':
-                return 'check-circle';
-            case 'error':
-                return 'exclamation-circle';
-            case 'warning':
-                return 'exclamation-triangle';
-            default:
-                return 'info-circle';
+    info(message) {
+        this.show(message, 'info', 'fas fa-info-circle');
+    }
+
+    /**
+     * Shows a notification
+     * @private
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type
+     * @param {string} icon - Font Awesome icon class
+     */
+    show(message, type, icon) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <i class="${icon}"></i>
+            <span class="notification-message">${message}</span>
+            <button class="notification-close">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+
+        // Add close button handler
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => this.hide(notification));
+
+        // Add to container
+        this.container.appendChild(notification);
+        this.notifications.add(notification);
+
+        // Remove old notifications if exceeding max
+        while (this.notifications.size > this.maxNotifications) {
+            const oldest = this.notifications.values().next().value;
+            this.hide(oldest);
         }
+
+        // Animate in
+        requestAnimationFrame(() => {
+            notification.classList.add('show');
+        });
+
+        // Auto-hide after delay
+        setTimeout(() => {
+            if (this.notifications.has(notification)) {
+                this.hide(notification);
+            }
+        }, this.autoHideDelay);
+    }
+
+    /**
+     * Hides a notification
+     * @private
+     * @param {HTMLElement} notification - Notification element to hide
+     */
+    hide(notification) {
+        notification.classList.remove('show');
+        notification.addEventListener('transitionend', () => {
+            if (this.notifications.has(notification)) {
+                this.container.removeChild(notification);
+                this.notifications.delete(notification);
+            }
+        });
     }
 
     /**
      * Clears all notifications
      */
-    clearAll() {
-        this.notifications.forEach((notification, id) => {
-            this.remove(id);
-        });
+    clear() {
+        this.notifications.forEach(notification => this.hide(notification));
     }
 }
 

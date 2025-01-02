@@ -334,50 +334,92 @@ h1 {
 
 .notification-container {
     position: fixed;
-    bottom: 20px;
+    top: 20px;
     right: 20px;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    z-index: 1000;
+    pointer-events: none;
 }
 
 .notification {
-    padding: 1rem 1.5rem;
     background: var(--surface-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-lg);
+    padding: 12px 20px;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    animation: slideIn var(--transition-normal);
+    gap: 12px;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(120%);
+    opacity: 0;
+    transition: all 0.3s ease-out;
+    pointer-events: all;
+    max-width: 400px;
+    border-left: 4px solid transparent;
 }
 
-.notification.success {
-    border-left: 4px solid var(--success-color);
+.notification.show {
+    transform: translateX(0);
+    opacity: 1;
 }
 
-.notification.error {
-    border-left: 4px solid var(--error-color);
+.notification i {
+    font-size: 20px;
 }
 
-.notification.warning {
-    border-left: 4px solid var(--warning-color);
+.notification-message {
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.4;
 }
 
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
 }
 
-.hidden {
-    display: none;
+.notification-close:hover {
+    background: var(--hover-color);
+    color: var(--text-primary);
+}
+
+.notification-success {
+    border-left-color: var(--success-color);
+}
+
+.notification-success i {
+    color: var(--success-color);
+}
+
+.notification-error {
+    border-left-color: var(--error-color);
+}
+
+.notification-error i {
+    color: var(--error-color);
+}
+
+.notification-warning {
+    border-left-color: var(--warning-color);
+}
+
+.notification-warning i {
+    color: var(--warning-color);
+}
+
+.notification-info {
+    border-left-color: var(--info-color);
+}
+
+.notification-info i {
+    color: var(--info-color);
 }
 
 .start-overlay {
@@ -432,4 +474,8 @@ h1 {
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+.hidden {
+    display: none;
 }
